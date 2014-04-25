@@ -1,0 +1,509 @@
+import re
+import math
+
+# Karl
+#given a string, outputs a list of tokens.
+def tokenize(string):
+    #add spaces around ! in order to treat them as tokens later.
+    #removes other punctuation/special chars
+    string= string.replace("\n", "")
+    string= string.replace(",", "")
+    string= string.replace(";", "") 
+    string= string.replace(":", "")
+    string= string.replace(";", "")
+    string= string.replace("(","")
+    string= string.replace(")","")
+    string= string.replace("!"," ! ")
+    string= string.replace("?", "")
+    string= string.replace("-","")
+    string= string.replace("\"", "")                
+    string= string.replace("\'", "")
+    string= string.replace(".", "")
+    string= string.replace("_", "")
+    string= string.replace("/", "")
+    string= string.replace("\\", "")
+    string= string.replace("$", "")
+    string= string.replace("*", "")
+    string= re.sub("[\s]+", " ", string)#to avoid empty string tokens
+    #string= string.lower()
+    #anything isolated by spaces is treated as a token.
+
+    tokens = string.split(" ")
+
+
+    return tokens
+
+''' Karl
+ '@param featureVector - list of 0s and 1s
+ '@param sentiment - 1, 0 or -1
+ '@return string of entries in featureVector followed by sentiment
+ '@spec helper
+ '@caller getFeatureCounts
+ '''
+def getHashable(featureVector, sentiment):
+    hashable=""
+    for feat in featureVector:
+        hashable+= str(feat)
+    hashable+= str(sentiment)
+    return hashable
+    
+def getStructure( hashable ):
+    hashable= list(hashable)
+    featV= []
+    for num in hashable:
+        featV.append( int( num ) )
+    sentiment= featV.pop()
+    return featV,sentiment
+
+
+# Karl
+#@param tokens - string list of words
+#@return string list of words with stopwords removed
+def stopWordsFilter( tokens ):
+    stopwords= ["the","of","for","a","an","as","to","from"]
+    filtered= []
+    for word in tokens:
+        if word.lower() not in stopwords:
+            filtered.append(word)
+    return filtered
+
+# Karl
+#@param reviewsDic - mapping: reviewName => (sentiments, sentences)
+#@param threshold - threshold for determining pos/neg sentiment
+#@return a list of positive words and another of negative words
+#@calling stopWordsFilter, tokenize
+def getPosNegWordList( reviewsDic, threshold ):
+    posWords= []
+    negWords= []
+    posCounts= dict()
+    negCounts= dict()
+    allCounts= dict() #mapping: word => total number of occurrences of word
+    for reviewName in reviewsDic:
+        (sentiments, sentences)= reviewsDic[reviewName]
+        i= 0
+        length= len(sentiments)
+        while i < length:
+            sentiment, sentence= sentiments[i], sentences[i]
+            tokens= stopWordsFilter( tokenize(sentence) )
+            for word in tokens:
+                try:
+                    allCounts[word]+= 1
+                except KeyError:
+                    allCounts[word]= 1
+                try:
+                    if sentiment == 1:
+                        posCounts[word]+= 1
+                    elif sentiment == -1:
+                        negCounts[word]+= 1
+                except KeyError:
+                    if sentiment == 1:
+                        posCounts[word]= 1
+                    elif sentiment == -1:
+                        negCounts[word]= 1
+            i+=1
+        
+    for word in posCounts:
+        count= posCounts[word]
+        if count / allCounts[word] > threshold:
+            posWords.append(word)
+    
+    for word in negCounts:
+        count= negCounts[word]
+        if count / allCounts[word] > threshold:
+            negWords.append(word)
+            
+    return posWords,negWords
+
+# Karl
+#@param sentence - target sentence
+#@param threshold - 
+#@return 1 on true, 0 on false
+def isLong(sentence, threshold):
+    if len(sentence) > threshold:
+        return 1
+    else:
+        return 0
+
+# Karl
+#@param sentence - target sentence
+#@return 1 if sentence has an all CAPS word,
+#              0 otherwise
+def containsAllCaps(sentence):
+    for word in sentence:
+        if word.isupper():
+            return 1
+            
+    return 0
+
+# Karl
+#@param sentence- target sentece
+#@return (1,num pos words) or 0,0 if sentence has no positive words
+def containsPos(sentence, poswords):
+    success= 0
+    numPositives= 0
+    for word in sentence:
+        if word in poswords:
+            success= 1
+            numPositives+= 1
+    return success, numPositives
+
+# Karl
+#@param sentence- target sentence
+#@return (1,num neg words) or 0,0 if sentence has no negative words
+def containsNeg(sentence, negwords):
+    success= 0
+    numNegatives= 0
+    for word in sentence:
+        if word in negwords:
+           success=1
+           numNegatives+= 1
+    return success,numNegatives
+
+# Karl
+#@param sentence - target sentence
+#@return 1 if ! is in sentence, 0 otherwise
+def containsExclamation(sentence):
+    if "!" in sentence:
+        return 1
+    return 0
+
+#Karl
+#@param sentence - target sentence
+#@return int list of our desired features
+def getFeatureVector( sentence, poswords, negwords):
+    
+    length= isLong(sentence, 20)
+    capitalization= containsAllCaps(sentence)
+    haspositive,numPos= containsPos(poswords,sentence)
+    hasnegative,numNeg= containsNeg(negwords, sentence)
+    punctuation= containsExclamation(sentence)
+    
+    return [length, capitalization, haspositive, hasnegative, punctuation]
+
+''' Karl
+ '@param reviewsDic - mapping: reviewName => (sentiments,sentences)
+ '@param poswords - list of positive words
+ '@param negwords - list of negative words
+ '@return mapping1: strconcat(featureVector,sentiment) => num occurrences of that combination in training
+                mapping2: (sentiment2, sentiment1) => num times sentiment2 immediately followes sentiment1
+                mapping3: sentiment => num occurrences in training
+                also returns the total number of sentences in reviewsDic
+ '@calling getFeatureVector
+ '''
+def getCounts(reviewsDic, poswords, negwords):
+    featureCounts= dict()
+    transitionCounts= dict()
+    startCounts= dict()
+    numSentences= 0
+    for reviewName in reviewsDic:
+        sentiments,sentences= reviewsDic[reviewName]
+        prevSentiment= -2 #for resetting transition counts between reviews
+        i= 0
+        length= len(sentiments)
+        while i < length:
+            sentiment,sentence= sentiments[i],sentences[i]
+            #get numSentences
+            numSentences+=1
+            
+            #get start counts
+            try:
+                startCounts[sentiment]+= 1
+            except KeyError:
+                startCounts[sentiment]= 1
+            
+            #get transition counts
+            if prevSentiment == -2:
+                #start fresh: new review
+                prevSentiment= sentiment
+            else:
+                try:
+                    transitionCounts[(sentiment,prevSentiment)]+= 1
+                except KeyError:
+                    transitionCounts[(sentiment,prevSentiment)]= 1
+                prevSentiment= sentiment
+            
+            #get feature counts
+ 
+            vector= getFeatureVector(sentence, poswords, negwords )
+            key= getHashable(vector, sentiment)
+            try:
+                featureCounts[key]+= 1
+            except KeyError:
+                featureCounts[key]= 1
+            i+= 1
+    return featureCounts, transitionCounts, startCounts,numSentences
+
+
+''' Karl
+ '@param featureVector - target feature vector as string
+ '@featureCounts - mapping: 'featureVector' + 'sentiment' => num occurrences
+ '@return total occurrences of 'featureVector' in featureCounts
+ '@note helper
+ '@caller getProbabilities
+ ''' 
+def getFeatureCountsFor(featureVector, featureCounts):
+        #if featureVector == "<UNK>":
+           # print "counts for UNK: " + str( featureCounts["<UNK>"] )
+            #return featureCounts["<UNK>"]
+            
+        featVPos= featureVector + "1"
+        featVNeg= featureVector + "-1"
+        featVNeu= featureVector + "0"
+        try:
+            totalFeatCount= featureCounts[featVPos]
+        except KeyError:
+            totalFeatCount= 0
+        try:
+            totalFeatCount+= featureCounts[featVNeg]
+        except KeyError:
+            totalFeatCount+= 0
+        try:
+            totalFeatCount+= featureCounts[featVNeu]
+        except KeyError:
+            totalFeatCount+= 0
+            
+        return float( totalFeatCount )
+
+
+
+''' Karl
+ '@param featureCounts - Mapping: 'featureVector' + 'sentiment' => count
+ '@param threshold - maximum N_c to smooth, where c <= threshold
+ '@return smoothed featureCounts
+ '''
+def goodturing(featureCounts, threshold):
+    #space of possible observations
+    totalObservations= 3*2**5
+    totalSeen= len(featureCounts)
+    totalUnseen= totalObservations - totalSeen
+    
+    #get counts for each N_c, along with all keys with that count
+    countsByN= dict()
+    keysInN= dict()
+    for key, count in featureCounts.iteritems():
+        if count in countsByN:
+            countsByN[count]+=1
+            keysInN[count].append(key)
+        else:
+            countsByN[count]= 1
+            keysInN[count]= [key]
+            
+    #get count for unseen feature vectors   
+    featureCounts["<UNK>1"]= countsByN[1] / ( 3*float(totalUnseen) )
+    featureCounts["<UNK>0"]= featureCounts["<UNK>1"]
+    featureCounts["<UNK>-1"] = featureCounts["<UNK>1"]
+    
+    
+    #update count for all keys in N_c where c <= threshold
+    for c in xrange(1, threshold+1):
+        if (c+1) not in countsByN:
+            print "never saw: " + str(c+1)
+            break
+        newCount= (c+1)*countsByN[c+1] / float(countsByN[c])
+        keysToUpdate= keysInN[c]
+        for key in keysToUpdate:
+            featureCounts[key]= newCount
+            
+    return featureCounts
+    
+
+''' Karl
+  '@param featureCounts - mapping: 'featureVector' + 'sentiment' => times combination occurs
+  '@param transitionCounts - mapping: (sentiment2,sentiment1) => times sent2 follows sent1
+  '@param startCounts - mapping: sentiment => times it occurs
+  '@param numSentences - total nnumber of sentences observed
+  '@return probabily mappings for each of the input count mappings
+  '@spec no smoothing
+  '''
+def getProbabilities( featureCounts, transitionCounts, startCounts, numSentences ):
+    featureProbs= dict()
+    transitionProbs= dict()
+    startProbs= dict()
+    
+    #get starting probabilities: Prob(pos), Prob(neg), Prob(neu)
+    numSentences= float(numSentences)
+    for sentiment in startCounts:
+        startProbs[sentiment]= startCounts[sentiment] / numSentences
+        
+    #get transition probabilities: e.g. Prob( pos | neg ) - (1,-1) in our schema
+    for (sent2,sent1) in transitionCounts:
+        transitionProbs[(sent2,sent1)]= transitionCounts[(sent2,sent1)] / float(startCounts[sent1])
+    
+    #get emission/feature probabilities
+    for key in featureCounts:
+        length= len(key)
+        #if key == "<UNK>":
+          #  featureVector= key
+        if length == 6:
+            featureVector= key[:len(key)-1]
+        else:
+            featureVector= key[:len(key)-2]
+        counts= getFeatureCountsFor(featureVector, featureCounts)
+        #counts is a float
+        print "key is " + key +  ", count is " + str(counts)
+        featureProbs[key]= featureCounts[key] / counts
+        
+    return featureProbs, transitionProbs, startProbs
+    
+''' Karl
+ '@param sentiment - 'pos', 'neg', or 'neu'
+ '@return 1, -1, or 0 respectively
+ '''
+def getSentimentNumber(sentiment):
+    if sentiment == "pos":
+        return 1
+    elif sentiment == "neg":
+        return -1
+    else:
+        return 0
+
+''' Karl
+ '@param path - absolute path to training data
+ '@return mapping: reviewName => (sentiments, sentences)
+ '''
+def getTrainingData(path):
+    trainingData= dict()
+    reviewStart= re.compile("^[a-zA-Z0-9]{1,}_((pos)|(neg)|(neu))_",re.IGNORECASE)
+    with open(path) as f:
+        line= f.readline()
+        reviewName= ""
+        while (line):
+            if reviewStart.match(line):
+                trainingData[line]= ([], [])
+                reviewName= line
+            elif line != "\n":
+                #get sentiment and sentence
+                temp= line.split("\t", 1)
+               # print temp
+                temp[0]= getSentimentNumber(temp[0])
+                #add to dictionary
+                sents, sentences=trainingData[reviewName]
+                sents.append(temp[0])
+                sentences.append(temp[1])
+                trainingData[reviewName]= (sents,sentences)
+            line= f.readline()
+    return trainingData 
+
+''' Karl
+ '@param path - absolute path to file
+ '@return list of pos/neg words
+ 'http://positivewordsresearch.com/list-of-positive-words/
+ 'http://www.enchantedlearning.com/wordlist/negativewords.shtml
+ '''
+def getInitPosNeg(path):
+    positives= []
+    with open(path) as f:
+        line= f.readline()
+        while (line):
+            line= line.replace("\n","")
+            line= line.replace("\xa0","")
+            line= line.replace("\xc2","")
+            line= line.replace("\xe2","")
+            line= line.replace("\x80","")
+            line= line.replace("\x93","")
+            line= line.replace("\\","")
+            line= line.replace("-", " " )
+            line= line.strip()
+            line= re.sub("[\s]+", " ", line)#to avoid empty string tokens
+            line= line.split(",")
+            for entry in line:
+                words= entry.strip().split(" ")
+                for word in words:
+                    positives.append( word.strip().lower() )
+            line= f.readline()
+    return positives
+    
+#DOES NOT WORK from what I can tell
+def viterbi(observations, states, startProbs, transitionProbs, emissionProbs, poswords, negwords):
+    #initialize probabilities for first observation
+    firstObservation= observations[0]
+    firstFeatureVector= getFeatureVector(firstObservation, poswords, negwords)
+    
+    V = [{}]
+    path = {}
+    
+    #get initial probabilities for first observation
+    for sentiment in states:
+       V[0][sentiment]= math.log( startProbs[sentiment] ) + math.log( emissionProbs[ getHashable(firstFeatureVector, sentiment) ] )
+       path[sentiment]= [sentiment]
+       
+    print V
+    
+    for t in range(1, len(observations)):
+        V.append({})
+        newpath = {}
+        
+        nextObs= observations[t]
+        nextFeatureVector= getFeatureVector( nextObs, poswords, negwords )
+        for sent2 in states:
+            maxProb= -99999999999;
+            maxState= -2;
+            for sent1 in states:
+                #overall probability of going from sent1 to sent2
+                try:
+                    emissionprob= emissionProbs[ getHashable( nextFeatureVector, sent2 ) ]
+                except KeyError:
+                    emissionprob= emissionProbs[ "<UNK>"  + str(sent2) ]
+                    
+                #overAll= V[t-1][sent1] * transitionProbs[(sent2,sent1)] * emissionprob
+                print "********************************************************************"
+                #print V[t-1][sent1], transitionProbs[(sent2,sent1)], emissionprob
+                overAll= V[t-1][sent1] +  math.log ( transitionProbs[(sent2,sent1)]  ) + math.log( emissionprob )
+                print "overAll is: " + str( overAll )
+                print " ////////////////////////////////////////////////////////////////////////////////////////////////"
+                if overAll > maxProb:
+                    #found more likely sequence of sentiments
+                    print "IN CONDITIONAL, storing: " + str(overAll)
+                    maxProb= overAll
+                    maxState= sent1
+                    
+            print "max Prob is : " +str(maxProb) 
+            V[t][sent2]= maxProb
+            newpath[sent2]= path[maxState] + [sent2]
+ 
+        path= newpath
+        
+    n= 0
+    if len(observations) != 1:
+        n=  t
+    (prob, state) = max((V[n][y], y) for y in states)
+    return (prob, path[state])
+    
+def prepareTest( tests ):
+    observations= []
+    trueLabels= []
+    for key in tests:
+        (labels,sentences)= tests[key]
+        observations+= sentences
+        trueLabels+= labels
+    return observations, trueLabels
+
+def differences(trueLabels, classifications):
+    tuples= []
+    diffs= []
+    for i in range(0,len(trueLabels)):
+       tuples.append( (trueLabels[i],classifications[i]) )
+       if trueLabels[i] != classifications[i]:
+           diffs.append(1.0)
+       else:
+           diffs.append(0.0)
+           
+    errorRate= sum(diffs) / len(diffs)
+    return tuples, diffs, errorRate
+
+'''Running this file will execute the code below this line '''
+
+ex= getTrainingData("/Users/Karl/Downloads/training_data.txt")
+initialPos= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/positives.txt")
+initialNeg= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/negatives.txt")
+pos, neg= getPosNegWordList( ex, 0.9)
+featureCounts, transitionCounts, startCounts, numSentences= getCounts(ex,pos,neg)
+smoothedCounts= goodturing(featureCounts.copy(), 5)
+featureProbs, transitionProbs, startProbs= getProbabilities(smoothedCounts, transitionCounts, startCounts, numSentences)
+states= [-1,0,1]
+sentences, trueLabels= prepareTest ( ex )
+finalProb, path= viterbi( sentences, states, startProbs, transitionProbs, featureProbs, initialPos, initialNeg )
+if len(trueLabels) == len(path):
+    print "OK AS EXPECTED"
+    
+tuples, diffs, errorRate= differences(trueLabels, path)
