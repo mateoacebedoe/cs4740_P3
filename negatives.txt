@@ -106,9 +106,11 @@ injurious
 insane
 insidious
 insipid
+issue
 jealous
 junky
 lose
+loss
 lousy
 lumpy
 malicious
@@ -146,6 +148,7 @@ plain
 poisonous
 poor
 prejudice
+problem
 questionable
 quirky
 quit

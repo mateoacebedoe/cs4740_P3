@@ -1,6 +1,15 @@
 import re
 import math
 
+''' HMM using initial featureVector , benchmark is simple getPolarity
+errorRate for HMM: 0.55
+errorRate for benchmark: 0.504594180704
+'''
+
+numFeatures= 5
+unknownTag= "<UNK>"
+numValuesPerFeature= 2
+
 # Karl
 #given a string, outputs a list of tokens.
 def tokenize(string):
@@ -72,9 +81,9 @@ def stopWordsFilter( tokens ):
 #@param threshold - threshold for determining pos/neg sentiment
 #@return a list of positive words and another of negative words
 #@calling stopWordsFilter, tokenize
-def getPosNegWordList( reviewsDic, threshold ):
-    posWords= []
-    negWords= []
+def getPosNegWordList( reviewsDic, poswords, negwords, threshold ):
+    posWords= poswords
+    negWords= negwords
     posCounts= dict()
     negCounts= dict()
     allCounts= dict() #mapping: word => total number of occurrences of word
@@ -84,7 +93,7 @@ def getPosNegWordList( reviewsDic, threshold ):
         length= len(sentiments)
         while i < length:
             sentiment, sentence= sentiments[i], sentences[i]
-            tokens= stopWordsFilter( tokenize(sentence) )
+            tokens= sentence
             for word in tokens:
                 try:
                     allCounts[word]+= 1
@@ -105,12 +114,12 @@ def getPosNegWordList( reviewsDic, threshold ):
     for word in posCounts:
         count= posCounts[word]
         if count / allCounts[word] > threshold:
-            posWords.append(word)
+            posWords.append(word.lower())
     
     for word in negCounts:
         count= negCounts[word]
         if count / allCounts[word] > threshold:
-            negWords.append(word)
+            negWords.append(word.lower())
             
     return posWords,negWords
 
@@ -142,7 +151,7 @@ def containsPos(sentence, poswords):
     success= 0
     numPositives= 0
     for word in sentence:
-        if word in poswords:
+        if word.lower() in poswords:
             success= 1
             numPositives+= 1
     return success, numPositives
@@ -154,7 +163,7 @@ def containsNeg(sentence, negwords):
     success= 0
     numNegatives= 0
     for word in sentence:
-        if word in negwords:
+        if word.lower() in negwords:
            success=1
            numNegatives+= 1
     return success,numNegatives
@@ -170,15 +179,17 @@ def containsExclamation(sentence):
 #Karl
 #@param sentence - target sentence
 #@return int list of our desired features
-def getFeatureVector( sentence, poswords, negwords):
-    
-    length= isLong(sentence, 20)
-    capitalization= containsAllCaps(sentence)
-    haspositive,numPos= containsPos(poswords,sentence)
-    hasnegative,numNeg= containsNeg(negwords, sentence)
-    punctuation= containsExclamation(sentence)
-    
-    return [length, capitalization, haspositive, hasnegative, punctuation]
+def getFeatureVector( sentence, poswords, negwords, observationType):
+    if observationType == "featureVector":
+        length= isLong(sentence, 20)
+        capitalization= containsAllCaps(sentence)
+        haspositive,numPos= containsPos(poswords,sentence)
+        hasnegative,numNeg= containsNeg(negwords, sentence)
+        punctuation= containsExclamation(sentence)
+        return [length, capitalization, haspositive, hasnegative, punctuation], numPos, numNeg
+    elif observationType == "polarity":
+        pol, dets= getPolarity( sentence, poswords, negwords ) 
+        return [pol], dets
 
 ''' Karl
  '@param reviewsDic - mapping: reviewName => (sentiments,sentences)
@@ -224,7 +235,8 @@ def getCounts(reviewsDic, poswords, negwords):
             
             #get feature counts
  
-            vector= getFeatureVector(sentence, poswords, negwords )
+            vector, numPos, numNeg= getFeatureVector(sentence, poswords, negwords, "featureVector" )
+            #vector, dets= getFeatureVector(sentence, poswords, negwords, "polarity" )
             key= getHashable(vector, sentiment)
             try:
                 featureCounts[key]+= 1
@@ -273,7 +285,7 @@ def getFeatureCountsFor(featureVector, featureCounts):
  '''
 def goodturing(featureCounts, threshold):
     #space of possible observations
-    totalObservations= 3*2**5
+    totalObservations= 3*numValuesPerFeature**numFeatures
     totalSeen= len(featureCounts)
     totalUnseen= totalObservations - totalSeen
     
@@ -289,10 +301,44 @@ def goodturing(featureCounts, threshold):
             keysInN[count]= [key]
             
     #get count for unseen feature vectors   
-    featureCounts["<UNK>1"]= countsByN[1] / ( 3*float(totalUnseen) )
-    featureCounts["<UNK>0"]= featureCounts["<UNK>1"]
-    featureCounts["<UNK>-1"] = featureCounts["<UNK>1"]
+    featureCounts[unknownTag + "1"]= countsByN[1] / ( 3*float(totalUnseen) )
+    featureCounts[unknownTag + "0"]= featureCounts[unknownTag + "1"]
+    featureCounts[unknownTag + "-1"] = featureCounts[unknownTag + "1"]
     
+    
+    #update count for all keys in N_c where c <= threshold
+    for c in xrange(1, threshold+1):
+        if (c+1) not in countsByN:
+            print "never saw: " + str(c+1)
+            break
+        newCount= (c+1)*countsByN[c+1] / float(countsByN[c])
+        keysToUpdate= keysInN[c]
+        for key in keysToUpdate:
+            featureCounts[key]= newCount
+            
+    return featureCounts
+
+def alternateGoodTuring(featureCounts, threshold):
+    #space of possible observations
+    totalObservations= 3*numValuesPerFeature**numFeatures
+    totalSeen= len(featureCounts)
+    totalUnseen= totalObservations - totalSeen
+    if totalUnseen == 0: return featureCounts
+    #get counts for each N_c, along with all keys with that count
+    countsByN= dict()
+    keysInN= dict()
+    for key, count in featureCounts.iteritems():
+        if count in countsByN:
+            countsByN[count]+=1
+            keysInN[count].append(key)
+        else:
+            countsByN[count]= 1
+            keysInN[count]= [key]
+            
+    #get count for unseen feature vectors   
+    featureCounts[unknownTag + "1"]= 1/ ( 3*float(totalUnseen) )
+    featureCounts[unknownTag + "0"]= featureCounts[unknownTag + "1"]
+    featureCounts[unknownTag + "-1"] = featureCounts[unknownTag + "1"]
     
     #update count for all keys in N_c where c <= threshold
     for c in xrange(1, threshold+1):
@@ -334,7 +380,7 @@ def getProbabilities( featureCounts, transitionCounts, startCounts, numSentences
         length= len(key)
         #if key == "<UNK>":
           #  featureVector= key
-        if length == 6:
+        if length == numFeatures + 1:
             featureVector= key[:len(key)-1]
         else:
             featureVector= key[:len(key)-2]
@@ -374,12 +420,14 @@ def getTrainingData(path):
             elif line != "\n":
                 #get sentiment and sentence
                 temp= line.split("\t", 1)
+                assert len(temp) == 2
                # print temp
                 temp[0]= getSentimentNumber(temp[0])
                 #add to dictionary
                 sents, sentences=trainingData[reviewName]
                 sents.append(temp[0])
-                sentences.append(temp[1])
+                #store sentence as a list
+                sentences.append( stopWordsFilter(tokenize( temp[1] ) ) )
                 trainingData[reviewName]= (sents,sentences)
             line= f.readline()
     return trainingData 
@@ -413,19 +461,26 @@ def getInitPosNeg(path):
             line= f.readline()
     return positives
     
-#DOES NOT WORK from what I can tell
+#
 def viterbi(observations, states, startProbs, transitionProbs, emissionProbs, poswords, negwords):
     #initialize probabilities for first observation
     firstObservation= observations[0]
-    firstFeatureVector= getFeatureVector(firstObservation, poswords, negwords)
+    firstFeatureVector,numPos,numNeg= getFeatureVector(firstObservation, poswords, negwords, "featureVector")
+    #firstFeatureVector,dets= getFeatureVector(firstObservation, poswords, negwords, "polarity")
+    #firstFeatureVector,dets= getPolarity(firstObservation, poswords, negwords)
+    #irstFeatureVector= [str(firstFeatureVector)]
     
     V = [{}]
     path = {}
     
     #get initial probabilities for first observation
     for sentiment in states:
-       V[0][sentiment]= math.log( startProbs[sentiment] ) + math.log( emissionProbs[ getHashable(firstFeatureVector, sentiment) ] )
-       path[sentiment]= [sentiment]
+        try:
+            emissionP= emissionProbs[ getHashable(firstFeatureVector, sentiment) ]
+        except KeyError:
+            emissionP= emissionProbs[  unknownTag + str(sentiment) ]
+        V[0][sentiment]= math.log( startProbs[sentiment] ) + math.log( emissionP )
+        path[sentiment]= [sentiment]
        
     print V
     
@@ -434,7 +489,7 @@ def viterbi(observations, states, startProbs, transitionProbs, emissionProbs, po
         newpath = {}
         
         nextObs= observations[t]
-        nextFeatureVector= getFeatureVector( nextObs, poswords, negwords )
+        nextFeatureVector, numPos, numNeg= getFeatureVector( nextObs, poswords, negwords, "featureVector" )
         for sent2 in states:
             maxProb= -99999999999;
             maxState= -2;
@@ -443,13 +498,21 @@ def viterbi(observations, states, startProbs, transitionProbs, emissionProbs, po
                 try:
                     emissionprob= emissionProbs[ getHashable( nextFeatureVector, sent2 ) ]
                 except KeyError:
-                    emissionprob= emissionProbs[ "<UNK>"  + str(sent2) ]
+                    emissionprob= emissionProbs[ unknownTag  + str(sent2) ]
+                
+                #causes 1% improvement: errorRate goes from 56.9% to 55.8%
+                '''if sent2 == 1:
+                    if numPos > numNeg:
+                        emissionprob= emissionprob *1.5
+                elif sent2 == -1 and numNeg > numPos:
+                    emissionprob= emissionprob * 1.5'''
                     
                 #overAll= V[t-1][sent1] * transitionProbs[(sent2,sent1)] * emissionprob
                 print "********************************************************************"
-                #print V[t-1][sent1], transitionProbs[(sent2,sent1)], emissionprob
+                print V[t-1][sent1], transitionProbs[(sent2,sent1)], emissionprob
                 overAll= V[t-1][sent1] +  math.log ( transitionProbs[(sent2,sent1)]  ) + math.log( emissionprob )
                 print "overAll is: " + str( overAll )
+                print "max Prob is: " + str(maxProb)
                 print " ////////////////////////////////////////////////////////////////////////////////////////////////"
                 if overAll > maxProb:
                     #found more likely sequence of sentiments
@@ -457,7 +520,6 @@ def viterbi(observations, states, startProbs, transitionProbs, emissionProbs, po
                     maxProb= overAll
                     maxState= sent1
                     
-            print "max Prob is : " +str(maxProb) 
             V[t][sent2]= maxProb
             newpath[sent2]= path[maxState] + [sent2]
  
@@ -468,22 +530,47 @@ def viterbi(observations, states, startProbs, transitionProbs, emissionProbs, po
         n=  t
     (prob, state) = max((V[n][y], y) for y in states)
     return (prob, path[state])
-    
+
+def classify( data, states, startProbs, transitionProbs, featureProbs, pos, neg ):
+    results= dict()
+    for reviewName in sorted(data.keys()):
+        (sentiments, sentences)= data[reviewName]
+        finalProb, path= viterbi( sentences, states, startProbs, transitionProbs, featureProbs, pos, neg )
+        results[reviewName]= (finalProb, path)
+    return results
+
+def benchmark( data, pos, neg ):
+    results= dict()
+    for reviewName in sorted(data.keys()):
+        (sentiments, sentences)= data[reviewName]
+        partialResults= []
+        for sentence in sentences:
+            res, dets= getPolarity( sentence, pos, neg )
+            partialResults.append(res)
+        results[reviewName]= (0, partialResults)
+    return results
+
 def prepareTest( tests ):
     observations= []
     trueLabels= []
-    for key in tests:
+    for key in sorted(tests.keys()):
+        print "getting info for key: " + key
         (labels,sentences)= tests[key]
         observations+= sentences
         trueLabels+= labels
     return observations, trueLabels
 
 def differences(trueLabels, classifications):
+    results= []
+    for reviewName in sorted(classifications.keys()):
+        (prob,path)= classifications[reviewName]
+        results+= path
+        
     tuples= []
     diffs= []
     for i in range(0,len(trueLabels)):
-       tuples.append( (trueLabels[i],classifications[i]) )
-       if trueLabels[i] != classifications[i]:
+       tuples.append( (trueLabels[i],results[i]) )
+       if trueLabels[i] != results[i]:
            diffs.append(1.0)
        else:
            diffs.append(0.0)
@@ -491,19 +578,118 @@ def differences(trueLabels, classifications):
     errorRate= sum(diffs) / len(diffs)
     return tuples, diffs, errorRate
 
+def getPolarity2( sentence, poswords, negwords ):
+    polarities= []
+    
+    #initialize each word
+    for word in sentence:
+        word= word.lower()
+        if word in poswords:
+            polarities.append(1)
+        elif word in negwords:
+            polarities.append(-1)
+        else:
+            polarities.append(0)
+            
+    
+    
+    counts= [0,0,0]
+    for res in polarities:
+        counts[res+1]+= 1
+    
+    length=float(  len(counts) )
+    for i in range(0,int(length)):
+        counts[i]= counts[i]/length
+    
+    if math.fabs(counts[-1] - counts[1]) > 0.50:
+        return counts.index( max( counts ) ) - 1, polarities
+    else:
+        return 0, polarities
+    
+    
+def getPolarity( sentence, poswords, negwords ):
+    polarities= []
+    
+    #initialize each word
+    for word in sentence:
+        #print word
+        word= word.lower()
+        if word in poswords:
+            polarities.append(1)
+        elif word in negwords:
+            polarities.append(-1)
+        else:
+            polarities.append(0)
+    
+    counts= [0,0,0]
+    for res in polarities:
+        #print res
+        counts[res+1]+= 1
+    return counts.index( max( counts ) ) - 1, polarities
+    
+    #consider two prev words
+    prev2= sentence[0].lower()
+    prev1=sentence[1].lower()
+    polarities[0]= 1 if prev2 in poswords else -1
+    if prev2 in poswords:
+        polarities[0]= 1
+    elif prev2 in negwords:
+        polarities[0]= -1
+    else:
+        polarities[0]= 0
+    if prev1 in poswords:
+        polarities[1]= polarities[0]
+    elif prev1 in negwords:
+        polarities[1]= -polarities[0]
+    else:
+        polarities[1]= 0
+    
+    for i in range(2, len(sentence)):
+        word= sentence[i].lower()
+        polarities[i]= (polarities[i-2] + polarities[i-1])
+        if word in negwords:
+            polarities[i]*=-1
+        elif word not in poswords:
+            polarities[i]= 0
+
+    return polarities
+    
+
 '''Running this file will execute the code below this line '''
 
-ex= getTrainingData("/Users/Karl/Downloads/training_data.txt")
-initialPos= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/positives.txt")
-initialNeg= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/negatives.txt")
-pos, neg= getPosNegWordList( ex, 0.9)
+ex= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/training_data.txt")
+initialPos= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/cs4740_P3/positives.txt")
+initialNeg= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/cs4740_P3/negatives.txt")
+pos, neg= getPosNegWordList( ex, initialPos, initialNeg, 0.9)
 featureCounts, transitionCounts, startCounts, numSentences= getCounts(ex,pos,neg)
-smoothedCounts= goodturing(featureCounts.copy(), 5)
+smoothedCounts=  goodturing(featureCounts.copy(), 5)
+#smoothedCounts=  alternateGoodTuring(featureCounts.copy(), 5)
 featureProbs, transitionProbs, startProbs= getProbabilities(smoothedCounts, transitionCounts, startCounts, numSentences)
-states= [-1,0,1]
+states= [-1,1,0]
 sentences, trueLabels= prepareTest ( ex )
-finalProb, path= viterbi( sentences, states, startProbs, transitionProbs, featureProbs, initialPos, initialNeg )
-if len(trueLabels) == len(path):
-    print "OK AS EXPECTED"
+#finalProb, path= viterbi( sentences, states, startProbs, transitionProbs, featureProbs, pos, neg )
+results= classify( ex , states, startProbs, transitionProbs, featureProbs, pos, neg )
+#if len(trueLabels) == len(path):
+ #   print "OK AS EXPECTED"
     
-tuples, diffs, errorRate= differences(trueLabels, path)
+tuples, diffs, errorRate= differences(trueLabels, results)
+print "errorRate for HMM: " + str(errorRate)
+results= benchmark( ex, pos, neg )
+tuples, diffs, errorRate= differences(trueLabels, results)
+print "errorRate for benchmark: " + str(errorRate)
+
+
+pex1= "Great cut: Hot Summer Day: unique, superb mix of instruments (violin, harmonica, keyboard, and electric guitar), \
+            nice vocals (the lyrics are kinda dumb, but that's part of the 60s), fantastic build up...everything that characterizes a great 60s song."
+pex1= tokenize( pex1 )
+pex2= tokenize( "Extra features after game play." )
+nex1= tokenize( "No ability to change from English to Japanese in the music/subtitles." )
+nex2= tokenize( "Another issue is the loss of the original design illustrations." )
+nuex1= tokenize( "The original game had a spoiler for a cover." )
+nuex2= tokenize( "The narrative is very realistic, and just when it seems that the story is reaching its climax, it ends!" )
+rpex1= getPolarity2( pex1, pos, neg )
+rpex2= getPolarity2( pex2, pos, neg )
+rnex1= getPolarity2( nex1, pos, neg )
+rnex2= getPolarity2( nex2, pos, neg )
+rnuex1= getPolarity2( nuex1, pos, neg )
+rnuex2= getPolarity2( nuex2, pos, neg )
