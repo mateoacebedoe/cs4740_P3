@@ -632,33 +632,6 @@ def getPolarity( sentence, poswords, negwords ):
         counts[res+1]+= 1
     return counts.index( max( counts ) ) - 1, polarities
     
-    #consider two prev words
-    prev2= sentence[0].lower()
-    prev1=sentence[1].lower()
-    polarities[0]= 1 if prev2 in poswords else -1
-    if prev2 in poswords:
-        polarities[0]= 1
-    elif prev2 in negwords:
-        polarities[0]= -1
-    else:
-        polarities[0]= 0
-    if prev1 in poswords:
-        polarities[1]= polarities[0]
-    elif prev1 in negwords:
-        polarities[1]= -polarities[0]
-    else:
-        polarities[1]= 0
-    
-    for i in range(2, len(sentence)):
-        word= sentence[i].lower()
-        polarities[i]= (polarities[i-2] + polarities[i-1])
-        if word in negwords:
-            polarities[i]*=-1
-        elif word not in poswords:
-            polarities[i]= 0
-
-    return polarities
-    
 
 '''Running this file will execute the code below this line '''
 
