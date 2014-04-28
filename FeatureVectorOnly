@@ -1,5 +1,6 @@
 import re
 import math
+import nltk
 
 ''' HMM using initial featureVector , benchmark is simple getPolarity
 errorRate for HMM: 0.55
@@ -427,7 +428,8 @@ def getTrainingData(path):
                 sents, sentences=trainingData[reviewName]
                 sents.append(temp[0])
                 #store sentence as a list
-                sentences.append( stopWordsFilter(tokenize( temp[1] ) ) )
+                #sentences.append( stopWordsFilter(tokenize( temp[1] ) ) )
+                sentences.append( strip( temp[1] ) )
                 trainingData[reviewName]= (sents,sentences)
             line= f.readline()
     return trainingData 
@@ -627,10 +629,10 @@ def getPolarity( sentence, poswords, negwords ):
         counts[res+1]+= 1
     return counts.index( max( counts ) ) - 1, polarities
     
-
 '''Running this file will execute the code below this line '''
 
 ex= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/training_data.txt")
+validation= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/validation.txt")
 initialPos= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/cs4740_P3/positives.txt")
 initialNeg= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/cs4740_P3/negatives.txt")
 pos, neg= getPosNegWordList( ex, initialPos, initialNeg, 0.9)
@@ -639,9 +641,9 @@ smoothedCounts=  goodturing(featureCounts.copy(), 5)
 #smoothedCounts=  alternateGoodTuring(featureCounts.copy(), 5)
 featureProbs, transitionProbs, startProbs= getProbabilities(smoothedCounts, transitionCounts, startCounts, numSentences)
 states= [-1,1,0]
-sentences, trueLabels= prepareTest ( ex )
+sentences, trueLabels= prepareTest ( validation )
 #finalProb, path= viterbi( sentences, states, startProbs, transitionProbs, featureProbs, pos, neg )
-results= classify( ex , states, startProbs, transitionProbs, featureProbs, pos, neg )
+results= classify( validation , states, startProbs, transitionProbs, featureProbs, pos, neg )
 #if len(trueLabels) == len(path):
  #   print "OK AS EXPECTED"
     

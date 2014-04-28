@@ -1,9 +1,29 @@
 import re
 import math
+import nltk
 
 ''' HMM using initial featureVector plus polarity as extra featture , benchmark is simple getPolarity
 errorRate for HMM: 0.488897396631
 errorRate for benchmark: 0.504594180704
+on training data.
+
+On validation data (30% of training data), I get:
+errorRate for HMM: 0.558098591549
+errorRate for benchmark: 0.56161971831
+
+  With my new strip function that uses pos tagging to strip sentences of all words except VB, RB and JJ, I get:
+errorRate for HMM: 0.52
+errorRate for benchmark: 0.62
+
+  With new polarity function getPolarity3, without strip():
+errorRate for HMM: 0.593309859155
+errorRate for benchmark: 0.56161971831
+
+  With new polarity function getPolarity3 AND strip():
+errorRate for HMM: 0.549295774648
+errorRate for benchmark: 0.628521126761
+
+Conclusion: 5 features (plus getPolarity() ) + strip() is the best I have seen thus far on validation set
 '''
 
 numFeatures= 6
@@ -434,7 +454,8 @@ def getTrainingData(path):
                 sents, sentences=trainingData[reviewName]
                 sents.append(temp[0])
                 #store sentence as a list
-                sentences.append( stopWordsFilter(tokenize( temp[1] ) ) )
+                #sentences.append( stopWordsFilter(tokenize( temp[1] ) ) )
+                sentences.append( strip ( temp[1] ) )
                 trainingData[reviewName]= (sents,sentences)
             line= f.readline()
     return trainingData 
@@ -633,11 +654,46 @@ def getPolarity( sentence, poswords, negwords ):
         #print res
         counts[res+1]+= 1
     return counts.index( max( counts ) ) - 1, polarities
+
+def getPolarity3( sentence, poswords, negwords ):
+    polarities= []
     
+    #initialize each word
+    for word in sentence:
+        #print word
+        word= word.lower()
+        if word in poswords:
+            polarities.append(1)
+        elif word in negwords:
+            polarities.append(-1)
+        #else:
+         #   polarities.append(0)
+    
+    counts= [0,0,0]
+    for res in polarities:
+        #print res
+        counts[res+1]+= 1
+    polarity= counts[2] - counts[0]
+    if polarity > 0:
+        return 1, polarities
+    elif polarity < 0:
+        return -1, polarities
+    else:
+        return 0, polarities
+
+def strip( sentence ):
+    essence= []
+    tokens = nltk.word_tokenize(sentence)
+    tagged = nltk.pos_tag(tokens)
+    for word,tag in tagged:
+        if tag == "RB" or tag == "JJ" or tag == "VB":
+            essence.append(word)
+    return essence
 
 '''Running this file will execute the code below this line '''
 
 ex= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/training_data.txt")
+validation= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/validation.txt")
 initialPos= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/cs4740_P3/positives.txt")
 initialNeg= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/cs4740_P3/negatives.txt")
 pos, neg= getPosNegWordList( ex, initialPos, initialNeg, 0.9)
@@ -646,9 +702,9 @@ smoothedCounts=  goodturing(featureCounts.copy(), 5)
 #smoothedCounts=  alternateGoodTuring(featureCounts.copy(), 5)
 featureProbs, transitionProbs, startProbs= getProbabilities(smoothedCounts, transitionCounts, startCounts, numSentences)
 states= [-1,1,0]
-sentences, trueLabels= prepareTest ( ex )
+sentences, trueLabels= prepareTest ( validation )
 #finalProb, path= viterbi( sentences, states, startProbs, transitionProbs, featureProbs, pos, neg )
-results= classify( ex , states, startProbs, transitionProbs, featureProbs, pos, neg )
+results= classify( validation , states, startProbs, transitionProbs, featureProbs, pos, neg )
 #if len(trueLabels) == len(path):
  #   print "OK AS EXPECTED"
     

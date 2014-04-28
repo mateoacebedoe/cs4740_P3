@@ -636,6 +636,7 @@ def getPolarity( sentence, poswords, negwords ):
 '''Running this file will execute the code below this line '''
 
 ex= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/training_data.txt")
+validation= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/validation.txt")
 initialPos= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/cs4740_P3/positives.txt")
 initialNeg= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/cs4740_P3/negatives.txt")
 pos, neg= getPosNegWordList( ex, initialPos, initialNeg, 0.9)
@@ -644,9 +645,9 @@ featureCounts, transitionCounts, startCounts, numSentences= getCounts(ex,pos,neg
 smoothedCounts=  alternateGoodTuring(featureCounts.copy(), 5)
 featureProbs, transitionProbs, startProbs= getProbabilities(smoothedCounts, transitionCounts, startCounts, numSentences)
 states= [-1,1,0]
-sentences, trueLabels= prepareTest ( ex )
+sentences, trueLabels= prepareTest ( validation )
 #finalProb, path= viterbi( sentences, states, startProbs, transitionProbs, featureProbs, pos, neg )
-results= classify( ex , states, startProbs, transitionProbs, featureProbs, pos, neg )
+results= classify( validation , states, startProbs, transitionProbs, featureProbs, pos, neg )
 #if len(trueLabels) == len(path):
  #   print "OK AS EXPECTED"
     
