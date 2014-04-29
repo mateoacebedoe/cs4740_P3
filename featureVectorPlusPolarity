@@ -12,8 +12,8 @@ errorRate for HMM: 0.558098591549
 errorRate for benchmark: 0.56161971831
 
   With my new strip function that uses pos tagging to strip sentences of all words except VB, RB and JJ, I get:
-errorRate for HMM: 0.52
-errorRate for benchmark: 0.62
+errorRate for HMM: 0.526408450704
+errorRate for benchmark: 0.56514084507
 
   With new polarity function getPolarity3, without strip():
 errorRate for HMM: 0.593309859155
@@ -433,9 +433,11 @@ def getSentimentNumber(sentiment):
 ''' Karl
  '@param path - absolute path to training data
  '@return mapping: reviewName => (sentiments, sentences)
+ '@return list of reviewNames in order seen
  '''
 def getTrainingData(path):
     trainingData= dict()
+    reviewNames= []
     reviewStart= re.compile("^[a-zA-Z0-9]{1,}_((pos)|(neg)|(neu))_",re.IGNORECASE)
     with open(path) as f:
         line= f.readline()
@@ -444,6 +446,7 @@ def getTrainingData(path):
             if reviewStart.match(line):
                 trainingData[line]= ([], [])
                 reviewName= line
+                reviewNames.append(line)
             elif line != "\n":
                 #get sentiment and sentence
                 temp= line.split("\t", 1)
@@ -458,7 +461,7 @@ def getTrainingData(path):
                 sentences.append( strip ( temp[1] ) )
                 trainingData[reviewName]= (sents,sentences)
             line= f.readline()
-    return trainingData 
+    return trainingData, reviewNames 
 
 ''' Karl
  '@param path - absolute path to file
@@ -685,15 +688,47 @@ def strip( sentence ):
     essence= []
     tokens = nltk.word_tokenize(sentence)
     tagged = nltk.pos_tag(tokens)
+    targets= ["RB","JJ","VB","VBD","VBN","NN"]
     for word,tag in tagged:
-        if tag == "RB" or tag == "JJ" or tag == "VB":
-            essence.append(word)
+        if tag in targets:
+            essence.append(word.replace("n't","not"))
     return essence
+    
+    
+def createKaggleSubmission( resultsDic, names ):
+    with open("/Users/Karl/Dropbox/NLP final project/cs4740_P3/testResults.txt","w") as f:
+        count= 0
+        f.write("Id,answer\n")
+        for reviewName in names:
+            #f.write( reviewName )
+            _,labels= resultsDic[reviewName]
+            for val in labels:
+                f.write( str(count) + "," + str(val) + "\n" )
+                count+=1
+            
+def aggregate( sentenceResults ):
+    reviewResults= []
+    for reviewName in sorted(sentenceResults.keys()):
+        _,labels= sentenceResults[reviewName]
+        counts= [0,0,0]
+        for res in labels:
+            #print res
+            counts[res+1]+= 1
+        polarity= counts[2] - counts[0]
+        if polarity > 0:
+            polarity= 1     
+        elif polarity < 0:
+            polarity= -1
+        else:
+            polarity= 0
+        reviewID= reviewName[reviewName.rindex("_") + 1:len(reviewName)-1]
+        reviewResults.append( ( reviewID, polarity ) )
+    return reviewResults
 
 '''Running this file will execute the code below this line '''
 
-ex= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/training_data.txt")
-validation= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/validation.txt")
+ex, exRevNames= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/training_data.txt")
+validation, revNames= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/validation.txt")
 initialPos= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/cs4740_P3/positives.txt")
 initialNeg= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/cs4740_P3/negatives.txt")
 pos, neg= getPosNegWordList( ex, initialPos, initialNeg, 0.9)
@@ -702,17 +737,21 @@ smoothedCounts=  goodturing(featureCounts.copy(), 5)
 #smoothedCounts=  alternateGoodTuring(featureCounts.copy(), 5)
 featureProbs, transitionProbs, startProbs= getProbabilities(smoothedCounts, transitionCounts, startCounts, numSentences)
 states= [-1,1,0]
-sentences, trueLabels= prepareTest ( validation )
+#sentences, trueLabels= prepareTest ( validation )
 #finalProb, path= viterbi( sentences, states, startProbs, transitionProbs, featureProbs, pos, neg )
-results= classify( validation , states, startProbs, transitionProbs, featureProbs, pos, neg )
+#results= classify( validation , states, startProbs, transitionProbs, featureProbs, pos, neg )
 #if len(trueLabels) == len(path):
  #   print "OK AS EXPECTED"
     
-tuples, diffs, errorRate= differences(trueLabels, results)
-print "errorRate for HMM: " + str(errorRate)
-results= benchmark( ex, pos, neg )
-tuples, diffs, errorRate= differences(trueLabels, results)
-print "errorRate for benchmark: " + str(errorRate)
+#tuples, diffs, errorRate= differences(trueLabels, results)
+#print "errorRate for HMM: " + str(errorRate)
+#results= benchmark( validation, pos, neg )
+#tuples, diffs, errorRate= differences(trueLabels, results)
+#print "errorRate for benchmark: " + str(errorRate)
+print "************ PROCESS TEST SET ****************"
+test, revNames= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/test_data_no_true_labels.txt")
+testResults= classify( test, states, startProbs, transitionProbs, featureProbs, pos, neg )
+createKaggleSubmission( testResults, revNames )
 
 
 pex1= "Great cut: Hot Summer Day: unique, superb mix of instruments (violin, harmonica, keyboard, and electric guitar), \
