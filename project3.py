@@ -12,7 +12,8 @@ intensifierList = ['so', 'too', 'very', 'really', 'awful', 'bloody', 'dead',\
 'somewhat', 'fully', 'ass', 'super']
 
 def computeFeatureVector(sentence):
-    features = str(containPositive(sentence)) +str(containNegation(sentence)) + str(containIntensifier(sentence))
+    features = str(containPositive(sentence)) +str(containNegation(sentence))\
+    + str(containIntensifier(sentence)) + str(capitalization(sentence)) + str(isLong(sentence, 42))
     return features
 emissionProb = computeEmissionProbability(trainingData)
 emissionProb
@@ -101,7 +102,7 @@ def isLong(sentence, k):
 #Output: 1 if there is at least one, 0 otherwise
 def capitalization(sentence):
     for token in sentence:
-        if token.isupper():
+        if token[0].isupper():
             return 1
     return 0
     
@@ -637,6 +638,40 @@ for title in validationData:
     
 accuracy = 1 - errorSum / total
 accuracy
+
+def crossValidation(allData, n):
+    keySet = allData.keys()
+    interval = len(keySet) / n
+    accuracyList = []
+    for i in range(5):
+        validationKeys = allData.keys()[i*interval : (i+1)*interval]
+        trainingKeys = [k for k in keySet if k not in validationKeys]
+        trainingData = {}
+        validationData = {}
+        for k in trainingKeys:
+            trainingData[k] = allData[k]
+        for k in validationKeys:
+            validationData[k] = allData[k]
+        transitionProb = computeTransitionWithReview(trainingData)
+        emissionProb = computeEmissionProbability(trainingData)
+        validationResults = {}
+        errorSum = 0.0
+        total = 0
+        for title in validationData:
+            if title.split('_')[1] == 'pos':
+                sentiments = Verterbi(validationData[title][1], transitionProb[0], emissionProb)
+            elif title.split('_')[1] == 'neu':
+                sentiments = Verterbi(validationData[title][1], transitionProb[1], emissionProb)
+            else:
+                sentiments = Verterbi(validationData[title][1], transitionProb[2], emissionProb)
+            errorSum += sum([abs(sentiments[i] - validationData[title][0][i]) for i in range(len(sentiments))])
+            total += len(sentiments)
+            validationResults[title] = sentiments
+        accuracy = 1 - errorSum / total
+        accuracyList.append(accuracy)
+    return sum(accuracyList) / float(n)
+
+
 
 testResults = []
 def getTesting(fileName):
