@@ -1,0 +1,94 @@
+
+positiveFile = open('positives.txt', 'rU')
+negativeFile = open('negatives.txt', 'rU')
+positiveList = positiveFile.read().strip().split('\n')
+negativeList = negativeFile.read().strip().split('\n')
+negationList = ['no', 'not', 'none', 'nobody', 'nothing', 'neither', 'nowhere', 'never', "n't"]
+intensifierList = ['so', 'too', 'very', 'really', 'awful', 'bloody', 'dead',\
+'dreadfully', 'extremely', 'fucking', 'hella', 'most', 'precious', 'quite',\
+'real', 'remarkably', 'terribly', 'moderately', 'wicked', 'bare', 'rather',\
+'somewhat', 'fully', 'ass', 'super']
+#####
+
+#####
+(trainingData, validationData) = getTraining('training_data.txt')
+transitionProb = computeTransitionProbability(trainingData)
+######
+
+emissionProb = computeEmissionProbability(trainingData)
+emissionProb
+
+sentiment = Verterbi(validationData[validationData.keys()[0]][1], transitionProb, emissionProb)
+
+#################
+
+transTriProb = computeTrigramTransProbability(trainingData)
+sentimentsVet = veterbiTrigram(validationData[validationData.keys()[0]][1], transTriProb, emissionProb)
+
+################
+
+transitionProb = computeTransitionWithReview(trainingData)
+validationResults = {}
+errorSum = 0.0
+total = 0
+for title in validationData:
+    if title.split('_')[1] == 'pos':
+        sentiments = Verterbi(validationData[title][1], transitionProb[0], emissionProb)
+    elif title.split('_')[1] == 'neu':
+        sentiments = Verterbi(validationData[title][1], transitionProb[1], emissionProb)
+    else:
+        sentiments = Verterbi(validationData[title][1], transitionProb[2], emissionProb)
+    errorSum = 0.0
+    for i in range(len(sentiments)):
+        if sentiments[i] != validationData[title][0][i]:
+            errorSum += 1
+    total += len(sentiments)
+    validationResults[title] = sentiments
+
+accuracy = 1 - errorSum / total
+
+###########
+
+transTriProb = computeTrigramTransitionWithReview(trainingData)
+validationResults = {}
+errorSum = 0.0
+total = 0
+for title in validationData:
+    if title.split('_')[1] == 'pos':
+        sentiments = veterbiTrigram(validationData[title][1], transTriProb[0], emissionProb)
+    elif title.split('_')[1] == 'neu':
+        sentiments = veterbiTrigram(validationData[title][1], transTriProb[1], emissionProb)
+    else:
+        sentiments = veterbiTrigram(validationData[title][1], transTriProb[2], emissionProb)
+    errorSum += sum([abs(sentiments[i] - validationData[title][0][i]) for i in range(len(sentiments))])
+    total += len(sentiments)
+    validationResults[title] = sentiments
+
+triAccuracy = 1 - errorSum / total
+accuracy
+triAccuracy
+
+##########3
+testResults = []
+
+########
+(titles, testingData) = getTesting('test_data_no_true_labels.txt')
+
+for title in titles:
+    if title.split('_') == 'pos':
+        testSentiments = Verterbi(testingData[title], transitionProb, emissionProb)
+    elif title.split('_') == 'neu':
+        testSentiments = Verterbi(testingData[title], transitionProb, emissionProb)
+    else:
+        testSentiments = Verterbi(testingData[title], transitionProb, emissionProb)
+    testResults.append(testSentiments)
+
+output = open('output.txt', 'w')
+output.write('Id,answer\n')
+testId = 0
+for r in testResults:
+    for i in range(len(r)):
+        outStr = str(testId) + ',' + str(r[i]) + '\n'
+        output.write(outStr)
+        testId += 1
+output.close()
