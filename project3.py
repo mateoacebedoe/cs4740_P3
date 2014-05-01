@@ -1,129 +1,6 @@
 import nltk
 from nltk.stem.lancaster import LancasterStemmer
 
-positiveFile = open('positives.txt', 'rU')
-negativeFile = open('negatives.txt', 'rU')
-positiveList = positiveFile.read().strip().split('\n')
-negativeList = negativeFile.read().strip().split('\n')
-negationList = ['no', 'not', 'none', 'nobody', 'nothing', 'neither', 'nowhere', 'never', "n't"]
-intensifierList = ['so', 'too', 'very', 'really', 'awful', 'bloody', 'dead',\
-'dreadfully', 'extremely', 'fucking', 'hella', 'most', 'precious', 'quite',\
-'real', 'remarkably', 'terribly', 'moderately', 'wicked', 'bare', 'rather',\
-'somewhat', 'fully', 'ass', 'super']
-
-def computeFeatureVector(sentence):
-    features = str(containPositive(sentence)) +str(containNegation(sentence))\
-    + str(containIntensifier(sentence)) + str(capitalization(sentence)) + str(isLong(sentence, 42))
-    return features
-emissionProb = computeEmissionProbability(trainingData)
-emissionProb
-
-
-def containIntensifier(sentence):
-    intensifierList = ['so', 'too', 'very', 'really', 'awful', 'bloody', 'dead',\
-    'dreadfully', 'extremely', 'fucking', 'hella', 'most', 'precious', 'quite',\
-    'real', 'remarkably', 'terribly', 'moderately', 'wicked', 'bare', 'rather',\
-    'somewhat', 'fully', 'ass', 'super']
-    for w in sentence:
-        if w[0].lower() in intensifierList:# and w[1] == 'RB':
-            return 1
-    return 0
-
-def containNegation(sentence):
-    negationList = ['no', 'not', 'none', 'nobody', 'nothing', 
-    'neither', 'nowhere', 'never', "n't", 'hardly', 'barely', 'scarcely']
-    for w in sentence:
-        if w[0].lower() in negationList:
-            return 1
-    return 0
-
-def PosNegNegation(sentence):
-    positiveFile = open('positive-words.txt', 'rU')
-    negativeFile = open('negative-words.txt', 'rU')
-    positiveList = positiveFile.read().strip().split('\n')
-    negativeList = negativeFile.read().strip().split('\n')
-    positiveFile.close()
-    negativeFile.close()
-    pos = 0
-    neg = 0
-    if containNegation:
-        for w in sentence:
-            if w[0] in positiveList:
-                pos += 1
-                if 'JJ' in w[1]:
-                    return -1
-            elif w[0] in negativeList:
-                neg += 1
-                if 'JJ' in w[1]:
-                    return 1
-        if pos > neg:
-            return 1
-        elif neg > pos:
-            return -1
-        else:
-            return 0
-
-def containPositive(sentence):
-    positiveFile = open('positives.txt', 'rU')
-    negativeFile = open('negatives.txt', 'rU')
-    positiveList = positiveFile.read().strip().split('\n')
-    negativeList = negativeFile.read().strip().split('\n')
-    positiveFile.close()
-    negativeFile.close()
-    pos = 0
-    neg = 0
-    for token in sentence:
-        if token[0].lower() in positiveList:
-            if 'JJ' in token[1]:
-                pos += 1
-            pos += 1
-        elif token[0].lower() in negativeList:
-            if 'JJ' in token[1]:
-                neg += 1
-            neg += 1
-    if pos > neg:
-        return 1
-    elif neg > pos:
-        return -1
-    else:
-        return 0
-
-#Check if the sentence is longer than k words
-#Input: a sentence, an integer k
-#Output: 1 if sentence is longer than k, 0 otherwise
-def isLong(sentence, k):
-    if len(sentence) > k:
-        return 1
-    else:
-        return 0
-
-#Check if the sentence contains any word that is all capitalized
-#Input: a sentence
-#Output: 1 if there is at least one, 0 otherwise
-def capitalization(sentence):
-    for token in sentence:
-        if token[0].isupper():
-            return 1
-    return 0
-    
-#Check if the sentence is ending with one or more '!' or '?'
-#Input: a sentence
-#Output: 1 if it contains with one, 0 otherwise
-def punctuation(sentence):
-    words = [s[0] for s in sentence]
-    count = 0
-    for s in words:
-        if s == '!' or s == '?':
-            count += 1
-    if count > 1:
-        return 1
-    else:
-        return 0
-    if '!' in words:
-        return 1
-    else:
-        return 0
-
 #Read file into training data and validation data
 #Input: the name string of the file
 #output: a tuple, the first element is the training data set
@@ -290,6 +167,128 @@ def computeEmissionProbability(trainingData):
         total = Pos + Neu + Neg
         EmissionProbability[feature] = (Pos / total, Neu / total, Neg / total, total)
     return EmissionProbability
+    
+#Testing features, details described in report
+def containIntensifier(sentence):
+    intensifierList = ['so', 'too', 'very', 'really', 'awful', 'bloody', 'dead',\
+    'dreadfully', 'extremely', 'fucking', 'hella', 'most', 'precious', 'quite',\
+    'real', 'remarkably', 'terribly', 'moderately', 'wicked', 'bare', 'rather',\
+    'somewhat', 'fully', 'ass', 'super']
+    for w in sentence:
+        if w[0].lower() in intensifierList:# and w[1] == 'RB':
+            return 1
+    return 0
+
+def containNegation(sentence):
+    negationList = ['no', 'not', 'none', 'nobody', 'nothing', 
+    'neither', 'nowhere', 'never', "n't", 'hardly', 'barely', 'scarcely']
+    for w in sentence:
+        if w[0].lower() in negationList:
+            return 1
+    return 0
+
+def PosNegNegation(sentence):
+    positiveFile = open('positive-words.txt', 'rU')
+    negativeFile = open('negative-words.txt', 'rU')
+    positiveList = positiveFile.read().strip().split('\n')
+    negativeList = negativeFile.read().strip().split('\n')
+    positiveFile.close()
+    negativeFile.close()
+    pos = 0
+    neg = 0
+    if containNegation:
+        for w in sentence:
+            if w[0] in positiveList:
+                pos += 1
+                if 'JJ' in w[1]:
+                    return -1
+            elif w[0] in negativeList:
+                neg += 1
+                if 'JJ' in w[1]:
+                    return 1
+        if pos > neg:
+            return 1
+        elif neg > pos:
+            return -1
+        else:
+            return 0
+
+def containPositive(sentence):
+    positiveFile = open('positive-words.txt', 'rU')
+    negativeFile = open('negative-words.txt', 'rU')
+    positiveList = positiveFile.read().strip().split('\n')
+    negativeList = negativeFile.read().strip().split('\n')
+    positiveFile.close()
+    negativeFile.close()
+    pos = 0
+    neg = 0
+    for token in sentence:
+        if token[0].lower() in positiveList:
+            if 'JJ' in token[1]:
+                pos += 1
+            pos += 1
+        elif token[0].lower() in negativeList:
+            if 'JJ' in token[1]:
+                neg += 1
+            neg += 1
+    if pos > neg:
+        return 1
+    elif neg > pos:
+        return -1
+    else:
+        return 0
+
+#Check if the sentence is longer than k words
+#Input: a sentence, an integer k
+#Output: 1 if sentence is longer than k, 0 otherwise
+def isLong(sentence, k):
+    if len(sentence) > k:
+        return 1
+    else:
+        return 0
+
+#Check if the sentence contains any word that is all capitalized
+#Input: a sentence
+#Output: 1 if there is at least one, 0 otherwise
+def capitalization(sentence):
+    for token in sentence:
+        if token[0].isupper():
+            return 1
+    return 0
+    
+#Check if the sentence is ending with one or more '!' or '?'
+#Input: a sentence
+#Output: 1 if it contains with one, 0 otherwise
+def punctuation(sentence):
+    words = [s[0] for s in sentence]
+    count = 0
+    for s in words:
+        if s == '!' or s == '?':
+            count += 1
+    if count > 1:
+        return 1
+    else:
+        return 0
+    if '!' in words:
+        return 1
+    else:
+        return 0
+        
+def strip( sentence ):
+    essence= []
+    targets= ["RB","JJ","VB","VBD","VBN","NN"]
+    for (word,tag) in sentence:
+        if tag in targets:
+            essence.append(word.replace("n't","not"))
+    return essence
+
+(trainingData, validationData) = getTraining('training_data.txt')
+def computeFeatureVector(sentence):
+    features = str(containPositive(sentence)) +str(containNegation(sentence))\
+    + str(containIntensifier(sentence)) + str(capitalization(sentence)) + str(isLong(sentence, 42))
+    return features
+emissionProb = computeEmissionProbability(trainingData)
+emissionProb
 
 #Input: a list of sentences, a set of transition probabilities and a
 #       set of emission probabilities
@@ -334,8 +333,115 @@ def Verterbi(review, transitionProb, emissionProb):
 (trainingData, validationData) = getTraining('training_data.txt')
 transitionProb = computeTransitionProbability(trainingData)
 
-sentiment = Verterbi(validationData[validationData.keys()[0]][1], transitionProb, emissionProb)
+#Extension: compute transition probability with review sentiment
+def computeTransitionWithReview(trainingData):
+    #Generate 3 data sets, each with one review sentiment
+    posTraining = {}
+    neuTraining = {}
+    negTraining = {}
+    for title in trainingData:
+        titleSen = title.split('_')[1]
+        if titleSen == 'pos':
+            posTraining[title] = trainingData[title]
+        elif titleSen == 'neu':
+            neuTraining[title] = trainingData[title]
+        else:
+            negTraining[title] = trainingData[title]
+            
+    (posResult, neuResult, negResult) = ({}, {}, {})
+    posResult = computeTransitionProbability(posTraining)
+    neuResult = computeTransitionProbability(neuTraining)
+    negResult = computeTransitionProbability(negTraining)
+    
+    return (posResult, neuResult, negResult)
 
+allData = dict(trainingData.items() + validationData.items())
+
+#n-fold cross validation on the model
+def crossValidation(allData, n):
+    keySet = allData.keys()
+    interval = len(keySet) / n
+    accuracyList = []
+    for i in range(5):
+        validationKeys = allData.keys()[i*interval : (i+1)*interval]
+        trainingKeys = [k for k in keySet if k not in validationKeys]
+        trainingData = {}
+        validationData = {}
+        for k in trainingKeys:
+            trainingData[k] = allData[k]
+        for k in validationKeys:
+            validationData[k] = allData[k]
+        transitionProb = computeTransitionWithReview(trainingData)
+        emissionProb = computeEmissionProbability(trainingData)
+        validationResults = {}
+        errorSum = 0.0
+        total = 0
+        for title in validationData:
+            if title.split('_')[1] == 'pos':
+                sentiments = Verterbi(validationData[title][1], transitionProb[0], emissionProb)
+            elif title.split('_')[1] == 'neu':
+                sentiments = Verterbi(validationData[title][1], transitionProb[1], emissionProb)
+            else:
+                sentiments = Verterbi(validationData[title][1], transitionProb[2], emissionProb)
+            for i in range(len(sentiments)):
+                if sentiments[i] != validationData[title][0][i]:
+                    errorSum += 1
+            total += len(sentiments)
+            validationResults[title] = sentiments
+        accuracy = 1 - errorSum / total
+        accuracyList.append(accuracy)
+    return sum(accuracyList) / float(n)
+
+#Read in testing data
+testResults = []
+def getTesting(fileName):
+    f = open(fileName, 'rU')
+    allData = f.readlines()
+    allTitles = []
+    testingData = {}
+    for l in allData:
+        if len(l.split('_')) == 3:
+            allTitles.append(l)
+    i = 0
+    while i < len(allData):
+        sentences = []
+        while allData[i] != '\n':
+            if allData[i] in allTitles:
+                key = allData[i]
+                i += 1
+            else:
+                sentence = allData[i].split('\t')[1]
+                tokens = nltk.word_tokenize(sentence)
+                tokens = nltk.pos_tag(tokens)
+                sentences.append(tokens)
+                i += 1
+        testingData[key] = sentences
+        i += 1
+    return (allTitles, testingData)
+    
+(titles, testingData) = getTesting('test_data_no_true_labels.txt')
+
+#Generate testing results
+for title in titles:
+    if title.split('_') == 'pos':
+        testSentiments = Verterbi(testingData[title], transitionProb[0], emissionProb)
+    elif title.split('_') == 'neu':
+        testSentiments = Verterbi(testingData[title], transitionProb[1], emissionProb)
+    else:
+        testSentiments = Verterbi(testingData[title], transitionProb[2], emissionProb)
+    testResults.append(testSentiments)
+
+result = open('Results1.txt', 'w')
+result.write('Id,answer\n')
+testId = 0
+for r in testResults:
+    for i in range(len(r)):
+        outStr = str(testId) + ',' + str(r[i]) + '\n'
+        result.write(outStr)
+        testId += 1
+result.close()
+
+#Compute transition probability under trigram assumption
 def computeTrigramTransProbability(trainingData):
     (PosPos, PosNeg, PosNeu, \
     NeuPos, NeuNeu, NeuNeg, \
@@ -503,143 +609,112 @@ def computeTrigramTransProbability(trainingData):
     '-11To0': NegPosToNeu, '-10To0': NegNeuToNeu, '-1-1To0': NegNegToNeu, \
     '-11To-1': NegPosToNeg, '-10To-1': NegNeuToNeg, '-1-1To-1': NegNegToNeg}
 
-def veterbiTrigram(review, transitionProb, emissionProb):
-    (sToPos, sToNeu, sToNeg) = (transitionProb['sTo1'],\
-    transitionProb['sTo0'], transitionProb['sTo-1'])
-    sentence = review[0]
-    firstFeatureVector = computeFeatureVector(sentence)
-    PosProb = emissionProb[firstFeatureVector][0] * sToPos
-    NeuProb = emissionProb[firstFeatureVector][1] * sToNeu
-    NegProb = emissionProb[firstFeatureVector][2] * sToNeg
-    sentimentList = []
-    maxProb = max(PosProb, NeuProb, NegProb)
-    if maxProb == PosProb:
-        sentimentList.append(1)
-    elif maxProb == NeuProb:
-        sentimentList.append(0)
-    else:
-        sentimentList.append(-1)
-    sentence = review[1]
-    (prevPos, prevNeu, prevNeg) = (PosProb, NeuProb, NegProb)
-    featureVector = computeFeatureVector(sentence)
-    print emissionProb[featureVector]
-    (ePos, eNeu, eNeg, numOfAppearance) = emissionProb[featureVector]  
-    PosProv = max(prevPos * transitionProb['1To1'], prevNeu * transitionProb['0To1'], prevNeg * transitionProb['-1To1']) * ePos
-    NeuProb = max(prevPos * transitionProb['1To0'], prevNeu * transitionProb['0To0'], prevNeg * transitionProb['-1To0']) * eNeu
-    NegProb = max(prevPos * transitionProb['1To-1'], prevNeu * transitionProb['0To-1'], prevNeg * transitionProb['-1To-1']) * eNeg
-    maxProb = max(PosProb, NeuProb, NegProb)
-    if maxProb == PosProb:
-        sentimentList.append(1)
-    elif maxProb == NeuProb:
-        sentimentList.append(0)
-    else:
-        sentimentList.append(-1)
-    for t in range(2, len(review)):
-        sentence = review[t]
-        (prev2Pos, prev2Neu, prev2Neg) = (prevPos, prevNeu, prevNeg)
-        (prevPos, prevNeu, prevNeg) = (PosProb, NeuProb, NegProb)
-        featureVector = computeFeatureVector(sentence)
-        (ePos, eNeu, eNeg, numOfAppearance) = emissionProb[featureVector] 
-        PosProv = max(prev2Pos * prevPos * transitionProb['11To1'], \
-                      prev2Pos * prevNeu * transitionProb['10To1'], \
-                      prev2Pos * prevNeg * transitionProb['1-1To1'], \
-                      prev2Neu * prevPos * transitionProb['01To1'], \
-                      prev2Neu * prevNeu * transitionProb['00To1'], \
-                      prev2Neu * prevNeg * transitionProb['0-1To1'], \
-                      prev2Neg * prevPos * transitionProb['-11To1'], \
-                      prev2Neg * prevNeu * transitionProb['-10To1'], \
-                      prev2Neg * prevNeg * transitionProb['-1-1To1']) * ePos
-        NeuProv = max(prev2Pos * prevPos * transitionProb['11To0'], \
-                      prev2Pos * prevNeu * transitionProb['10To0'], \
-                      prev2Pos * prevNeg * transitionProb['1-1To0'], \
-                      prev2Neu * prevPos * transitionProb['01To0'], \
-                      prev2Neu * prevNeu * transitionProb['00To0'], \
-                      prev2Neu * prevNeg * transitionProb['0-1To0'], \
-                      prev2Neg * prevPos * transitionProb['-11To0'], \
-                      prev2Neg * prevNeu * transitionProb['-10To0'], \
-                      prev2Neg * prevNeg * transitionProb['-1-1To0']) * eNeu
-        NegProv = max(prev2Pos * prevPos * transitionProb['11To-1'], \
-                      prev2Pos * prevNeu * transitionProb['10To-1'], \
-                      prev2Pos * prevNeg * transitionProb['1-1To-1'], \
-                      prev2Neu * prevPos * transitionProb['01To-1'], \
-                      prev2Neu * prevNeu * transitionProb['00To-1'], \
-                      prev2Neu * prevNeg * transitionProb['0-1To-1'], \
-                      prev2Neg * prevPos * transitionProb['-11To-1'], \
-                      prev2Neg * prevNeu * transitionProb['-10To-1'], \
-                      prev2Neg * prevNeg * transitionProb['-1-1To-1']) * eNeg
-        maxProb = max(PosProb, NeuProb, NegProb)
-        if maxProb == PosProb:
-            sentimentList.append(1)
-        elif maxProb == NeuProb:
-            sentimentList.append(0)
-        else:
-            sentimentList.append(-1)
-    return sentimentList
-
-transTriProb = computeTrigramTransProbability(trainingData)
-sentimentsVet = veterbiTrigram(validationData[validationData.keys()[0]][1], transTriProb, emissionProb)
-
-def computeTransitionWithReview(trainingData):
-    #Generate 3 data sets, each with one review sentiment
-    posTraining = {}
-    neuTraining = {}
-    negTraining = {}
-    for title in trainingData:
-        titleSen = title.split('_')[1]
-        if titleSen == 'pos':
-            posTraining[title] = trainingData[title]
-        elif titleSen == 'neu':
-            neuTraining[title] = trainingData[title]
-        else:
-            negTraining[title] = trainingData[title]
-            
-    (posResult, neuResult, negResult) = ({}, {}, {})
-    posResult = computeTransitionProbability(posTraining)
-    neuResult = computeTransitionProbability(neuTraining)
-    negResult = computeTransitionProbability(negTraining)
-    
-    return (posResult, neuResult, negResult)
-
+#Compute trigram transition probability with review sentiment given
 def computeTrigramTransitionWithReview(trainingData):
-    #Generate 3 data sets, each with one review sentiment
-    posTraining = {}
-    neuTraining = {}
-    negTraining = {}
-    for title in trainingData:
-        titleSen = title.split('_')[1]
-        if titleSen == 'pos':
-            posTraining[title] = trainingData[title]
-        elif titleSen == 'neu':
-            neuTraining[title] = trainingData[title]
-        else:
-            negTraining[title] = trainingData[title]
-            
-    (posResult, neuResult, negResult) = ({}, {}, {})
-    posResult = computeTrigramTransProbability(posTraining)
-    neuResult = computeTrigramTransProbability(neuTraining)
-    negResult = computeTrigramTransProbability(negTraining)
-    
-    return (posResult, neuResult, negResult)
+     #Generate 3 data sets, each with one review sentiment
+     posTraining = {}
+     neuTraining = {}
+     negTraining = {}
+     for title in trainingData:
+         titleSen = title.split('_')[1]
+         if titleSen == 'pos':
+             posTraining[title] = trainingData[title]
+         elif titleSen == 'neu':
+             neuTraining[title] = trainingData[title]
+         else:
+             negTraining[title] = trainingData[title]
+             
+     (posResult, neuResult, negResult) = ({}, {}, {})
+     posResult = computeTrigramTransProbability(posTraining)
+     neuResult = computeTrigramTransProbability(neuTraining)
+     negResult = computeTrigramTransProbability(negTraining)
+     return (posResult, neuResult, negResult)
 
-transitionProb = computeTransitionWithReview(trainingData)
+
+transTriProb = computeTrigramTransitionWithReview(trainingData)
 validationResults = {}
 errorSum = 0.0
 total = 0
-for title in validationData:
-    if title.split('_')[1] == 'pos':
-        sentiments = Verterbi(validationData[title][1], transitionProb[0], emissionProb)
-    elif title.split('_')[1] == 'neu':
-        sentiments = Verterbi(validationData[title][1], transitionProb[1], emissionProb)
-    else:
-        sentiments = Verterbi(validationData[title][1], transitionProb[2], emissionProb)
-    errorSum += sum([abs(sentiments[i] - validationData[title][0][i]) for i in range(len(sentiments))])
-    total += len(sentiments)
-    validationResults[title] = sentiments
-    
-accuracy = 1 - errorSum / total
-accuracy
 
-def crossValidation(allData, n):
+#Verterbi algorithm with trigram assumption
+def veterbiTrigram(review, transitionProb, emissionProb):
+     #1 sentence
+     (sToPos, sToNeu, sToNeg) = (transitionProb['sTo1'],\
+     transitionProb['sTo0'], transitionProb['sTo-1'])
+     sentence = review[0]
+     firstFeatureVector = computeFeatureVector(sentence)
+     PosProb = emissionProb[firstFeatureVector][0] * sToPos
+     NeuProb = emissionProb[firstFeatureVector][1] * sToNeu
+     NegProb = emissionProb[firstFeatureVector][2] * sToNeg
+     sentimentList = []
+     maxProb = max(PosProb, NeuProb, NegProb)
+     if maxProb == PosProb:
+         sentimentList.append(1)
+     elif maxProb == NeuProb:
+         sentimentList.append(0)
+     else:
+         sentimentList.append(-1)
+     #2nd sentence:
+     sentence = review[1]
+     (prevPos, prevNeu, prevNeg) = (PosProb, NeuProb, NegProb)
+     featureVector = computeFeatureVector(sentence)
+     (ePos, eNeu, eNeg) = emissionProb[featureVector]
+     
+     PosProv = max(prevPos * transitionProb['1To1'], prevNeu * transitionProb['0To1'], prevNeg * transitionProb['-1To1']) * ePos
+     NeuProb = max(prevPos * transitionProb['1To0'], prevNeu * transitionProb['0To0'], prevNeg * transitionProb['-1To0']) * eNeu
+     NegProb = max(prevPos * transitionProb['1To-1'], prevNeu * transitionProb['0To-1'], prevNeg * transitionProb['-1To-1']) * eNeg
+     maxProb = max(PosProb, NeuProb, NegProb)
+     if maxProb == PosProb:
+         sentimentList.append(1)
+     elif maxProb == NeuProb:
+         sentimentList.append(0)
+     else:
+         sentimentList.append(-1)
+     #all the rest
+     for t in range(2, len(review)):
+         sentence = review[t]
+         (prev2Pos, prev2Neu, prev2Neg) = (prevPos, prevNeu, prevNeg)
+         (prevPos, prevNeu, prevNeg) = (PosProb, NeuProb, NegProb)
+         featureVector = computeFeatureVector(sentence)
+         (ePos, eNeu, eNeg) = emissionProb[featureVector] 
+         PosProv = max(prev2Pos * prevPos * transitionProb['11To1'], \
+                       prev2Pos * prevNeu * transitionProb['10To1'], \
+                       prev2Pos * prevNeg * transitionProb['1-1To1'], \
+                       prev2Neu * prevPos * transitionProb['01To1'], \
+                       prev2Neu * prevNeu * transitionProb['00To1'], \
+                       prev2Neu * prevNeg * transitionProb['0-1To1'], \
+                       prev2Neg * prevPos * transitionProb['-11To1'], \
+                       prev2Neg * prevNeu * transitionProb['-10To1'], \
+                       prev2Neg * prevNeg * transitionProb['-1-1To1']) * ePos 
+         NeuProv = max(prev2Pos * prevPos * transitionProb['11To0'], \
+                       prev2Pos * prevNeu * transitionProb['10To0'], \
+                       prev2Pos * prevNeg * transitionProb['1-1To0'], \
+                       prev2Neu * prevPos * transitionProb['01To0'], \
+                       prev2Neu * prevNeu * transitionProb['00To0'], \
+                       prev2Neu * prevNeg * transitionProb['0-1To0'], \
+                       prev2Neg * prevPos * transitionProb['-11To0'], \
+                       prev2Neg * prevNeu * transitionProb['-10To0'], \
+                       prev2Neg * prevNeg * transitionProb['-1-1To0']) * eNeu 
+         NegProv = max(prev2Pos * prevPos * transitionProb['11To-1'], \
+                       prev2Pos * prevNeu * transitionProb['10To-1'], \
+                       prev2Pos * prevNeg * transitionProb['1-1To-1'], \
+                       prev2Neu * prevPos * transitionProb['01To-1'], \
+                       prev2Neu * prevNeu * transitionProb['00To-1'], \
+                       prev2Neu * prevNeg * transitionProb['0-1To-1'], \
+                       prev2Neg * prevPos * transitionProb['-11To-1'], \
+                       prev2Neg * prevNeu * transitionProb['-10To-1'], \
+                       prev2Neg * prevNeg * transitionProb['-1-1To-1']) * eNeg
+         maxProb = max(PosProb, NeuProb, NegProb)
+         if maxProb == PosProb:
+             sentimentList.append(1)
+         elif maxProb == NeuProb:
+             sentimentList.append(0)
+         else:
+             sentimentList.append(-1)
+     return sentimentList
+
+#Perform n-fold cross validation on trigram model
+def crossTriValidation(allData, n):
     keySet = allData.keys()
     interval = len(keySet) / n
     accuracyList = []
@@ -652,18 +727,18 @@ def crossValidation(allData, n):
             trainingData[k] = allData[k]
         for k in validationKeys:
             validationData[k] = allData[k]
-        transitionProb = computeTransitionWithReview(trainingData)
+        transitionProb = computeTrigramTransitionWithReview(trainingData)
         emissionProb = computeEmissionProbability(trainingData)
         validationResults = {}
         errorSum = 0.0
         total = 0
         for title in validationData:
             if title.split('_')[1] == 'pos':
-                sentiments = Verterbi(validationData[title][1], transitionProb[0], emissionProb)
+                sentiments = veterbiTrigram(validationData[title][1], transitionProb[0], emissionProb)
             elif title.split('_')[1] == 'neu':
-                sentiments = Verterbi(validationData[title][1], transitionProb[1], emissionProb)
+                sentiments = veterbiTrigram(validationData[title][1], transitionProb[1], emissionProb)
             else:
-                sentiments = Verterbi(validationData[title][1], transitionProb[2], emissionProb)
+                sentiments = veterbiTrigram(validationData[title][1], transitionProb[2], emissionProb)
             errorSum += sum([abs(sentiments[i] - validationData[title][0][i]) for i in range(len(sentiments))])
             total += len(sentiments)
             validationResults[title] = sentiments
@@ -671,51 +746,16 @@ def crossValidation(allData, n):
         accuracyList.append(accuracy)
     return sum(accuracyList) / float(n)
 
-
-
-testResults = []
-def getTesting(fileName):
-    f = open(fileName, 'rU')
-    allData = f.readlines()
-    allTitles = []
-    testingData = {}
-    for l in allData:
-        if len(l.split('_')) == 3:
-            allTitles.append(l)
-    i = 0
-    while i < len(allData):
-        sentences = []
-        while allData[i] != '\n':
-            if allData[i] in allTitles:
-                key = allData[i]
-                i += 1
-            else:
-                sentence = allData[i].split('\t')[1]
-                tokens = nltk.word_tokenize(sentence)
-                tokens = nltk.pos_tag(tokens)
-                sentences.append(tokens)
-                i += 1
-        testingData[key] = sentences
-        i += 1
-    return (allTitles, testingData)
-    
-(titles, testingData) = getTesting('test_data_no_true_labels.txt')
-
-for title in titles:
-    if title.split('_') == 'pos':
-        testSentiments = Verterbi(testingData[title], transitionProb[0], emissionProb)
-    elif title.split('_') == 'neu':
-        testSentiments = Verterbi(testingData[title], transitionProb[1], emissionProb)
+#Testing verterbi of trigram model on validation set
+for title in validationData:
+    if title.split('_')[1] == 'pos':
+        sentiments = veterbiTrigram(validationData[title][1], transTriProb[0], emissionProb)
+    elif title.split('_')[1] == 'neu':
+        sentiments = veterbiTrigram(validationData[title][1], transTriProb[1], emissionProb)
     else:
-        testSentiments = Verterbi(testingData[title], transitionProb[2], emissionProb)
-    testResults.append(testSentiments)
-
-output = open('output.txt', 'w')
-output.write('Id,answer\n')
-testId = 0
-for r in testResults:
-    for i in range(len(r)):
-        outStr = str(testId) + ',' + str(r[i]) + '\n'
-        output.write(outStr)
-        testId += 1
-output.close()
+        sentiments = veterbiTrigram(validationData[title][1], transTriProb[2], emissionProb)
+    for i in range(len(sentiments)):
+        if sentiments[i] != validationData[title][0][i]:
+            errorSum += 1
+    total += len(sentiments)
+    validationResults[title] = sentiments
