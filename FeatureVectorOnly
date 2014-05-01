@@ -407,9 +407,11 @@ def getSentimentNumber(sentiment):
 ''' Karl
  '@param path - absolute path to training data
  '@return mapping: reviewName => (sentiments, sentences)
+ '@return list of reviewNames in order seen
  '''
 def getTrainingData(path):
     trainingData= dict()
+    reviewNames= []
     reviewStart= re.compile("^[a-zA-Z0-9]{1,}_((pos)|(neg)|(neu))_",re.IGNORECASE)
     with open(path) as f:
         line= f.readline()
@@ -418,6 +420,7 @@ def getTrainingData(path):
             if reviewStart.match(line):
                 trainingData[line]= ([], [])
                 reviewName= line
+                reviewNames.append(line)
             elif line != "\n":
                 #get sentiment and sentence
                 temp= line.split("\t", 1)
@@ -428,11 +431,11 @@ def getTrainingData(path):
                 sents, sentences=trainingData[reviewName]
                 sents.append(temp[0])
                 #store sentence as a list
-                #sentences.append( stopWordsFilter(tokenize( temp[1] ) ) )
-                sentences.append( strip( temp[1] ) )
+                sentences.append( stopWordsFilter(tokenize( temp[1] ) ) )
+                #sentences.append( strip ( temp[1] ) )
                 trainingData[reviewName]= (sents,sentences)
             line= f.readline()
-    return trainingData 
+    return trainingData, reviewNames 
 
 ''' Karl
  '@param path - absolute path to file
@@ -629,10 +632,22 @@ def getPolarity( sentence, poswords, negwords ):
         counts[res+1]+= 1
     return counts.index( max( counts ) ) - 1, polarities
     
+    
+def createKaggleSubmission( resultsDic, names ):
+    with open("/Users/Karl/Dropbox/NLP final project/cs4740_P3/testResults.txt","w") as f:
+        count= 0
+        f.write("Id,answer\n")
+        for reviewName in names:
+            #f.write( reviewName )
+            _,labels= resultsDic[reviewName]
+            for val in labels:
+                f.write( str(count) + "," + str(val) + "\n" )
+                count+=1
+    
 '''Running this file will execute the code below this line '''
 
-ex= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/training_data.txt")
-validation= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/validation.txt")
+ex, RevNames= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/training_data.txt")
+validation, RevNames= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/validation.txt")
 initialPos= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/cs4740_P3/positives.txt")
 initialNeg= getInitPosNeg("/Users/Karl/Dropbox/NLP final project/cs4740_P3/negatives.txt")
 pos, neg= getPosNegWordList( ex, initialPos, initialNeg, 0.9)
@@ -649,9 +664,13 @@ results= classify( validation , states, startProbs, transitionProbs, featureProb
     
 tuples, diffs, errorRate= differences(trueLabels, results)
 print "errorRate for HMM: " + str(errorRate)
-results= benchmark( ex, pos, neg )
+'''results= benchmark( ex, pos, neg )
 tuples, diffs, errorRate= differences(trueLabels, results)
-print "errorRate for benchmark: " + str(errorRate)
+print "errorRate for benchmark: " + str(errorRate)'''
+print "************ PROCESS TEST SET ****************"
+#test, revNames= getTrainingData("/Users/Karl/Dropbox/NLP final project/cs4740_P3/test_data_no_true_labels.txt")
+#testResults= classify( test, states, startProbs, transitionProbs, featureProbs, pos, neg )
+#createKaggleSubmission( testResults, revNames )
 
 
 pex1= "Great cut: Hot Summer Day: unique, superb mix of instruments (violin, harmonica, keyboard, and electric guitar), \

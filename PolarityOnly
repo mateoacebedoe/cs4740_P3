@@ -410,9 +410,11 @@ def getSentimentNumber(sentiment):
 ''' Karl
  '@param path - absolute path to training data
  '@return mapping: reviewName => (sentiments, sentences)
+ '@return list of reviewNames in order seen
  '''
 def getTrainingData(path):
     trainingData= dict()
+    reviewNames= []
     reviewStart= re.compile("^[a-zA-Z0-9]{1,}_((pos)|(neg)|(neu))_",re.IGNORECASE)
     with open(path) as f:
         line= f.readline()
@@ -421,6 +423,7 @@ def getTrainingData(path):
             if reviewStart.match(line):
                 trainingData[line]= ([], [])
                 reviewName= line
+                reviewNames.append(line)
             elif line != "\n":
                 #get sentiment and sentence
                 temp= line.split("\t", 1)
@@ -432,9 +435,10 @@ def getTrainingData(path):
                 sents.append(temp[0])
                 #store sentence as a list
                 sentences.append( stopWordsFilter(tokenize( temp[1] ) ) )
+                #sentences.append( strip ( temp[1] ) )
                 trainingData[reviewName]= (sents,sentences)
             line= f.readline()
-    return trainingData 
+    return trainingData, reviewNames 
 
 ''' Karl
  '@param path - absolute path to file
